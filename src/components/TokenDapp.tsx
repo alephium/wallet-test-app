@@ -18,6 +18,7 @@ import {
 } from "../services/wallet.service"
 import styles from "../styles/Home.module.css"
 import { SubscribeOptions, subscribeToTxStatus, TxStatusSubscription, TxStatus, web3, MessageHasher, prettifyAttoAlphAmount, isHexString } from "@alephium/web3"
+import { useWallet } from '@alephium/web3-react';
 
 type Status = "idle" | "approve" | "pending" | "success" | "failure"
 
@@ -43,7 +44,7 @@ export const TokenDapp: FC<{
   const [mintedToken, setMintedToken] = useState<string | undefined>()
   const [transferingMintedToken, setTransferingMintedToken] = useState<boolean>(false)
   const [selectedTokenBalance, setSelectedTokenBalance] = useState<{ value: TokenBalance, label: string } | undefined>()
-  const [alephium, setAlephium] = useState<AlephiumWindowObject | undefined>(undefined)
+  const { signer: alephium, account } = useWallet()
 
   const buttonsDisabled = ["approve", "pending"].includes(transactionStatus)
 
@@ -63,12 +64,6 @@ export const TokenDapp: FC<{
 
     getAlphBalance(address).then(alphBalance => {
       setAlphBalance(alphBalance)
-    })
-
-    getDefaultAlephiumWallet().then(alephium => {
-      if (!!alephium) {
-        setAlephium(alephium)
-      }
     })
   }, [address])
 
@@ -333,7 +328,7 @@ export const TokenDapp: FC<{
 
       <div className="columns">
         {
-          (mintedToken && alephium?.connectedAccount) ? (
+          (mintedToken && account ) ? (
             <form onSubmit={handleWithdrawMintedTokenSubmit}>
               <h2 className={styles.title}>Withdraw all minted token</h2>
               <label htmlFor="token-address">Token Address</label>
@@ -345,7 +340,7 @@ export const TokenDapp: FC<{
                 id="transfer-to"
                 name="fname"
                 disabled
-                value={alephium.connectedAccount.address}
+                value={account.address}
                 onChange={(e) => setTransferTo(e.target.value)}
               />
 
