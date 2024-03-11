@@ -2,11 +2,6 @@ import type { NextPage } from "next"
 import Head from "next/head"
 import { useEffect, useState } from "react"
 import { TokenDapp } from "../components/TokenDapp"
-import {
-  connectWallet,
-  disconnectWallet,
-  silentConnectWallet
-} from "../services/wallet.service"
 import styles from "../styles/Home.module.css"
 import { AlephiumConnectButton, useWallet } from '@alephium/web3-react'
 

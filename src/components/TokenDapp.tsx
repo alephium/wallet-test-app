@@ -1,6 +1,5 @@
 import { FC, useEffect, useState } from "react"
 import Select from 'react-select';
-import { AlephiumWindowObject, getDefaultAlephiumWallet } from '@alephium/get-extension-wallet'
 import {
   destroyTokenContract,
   getAlphBalance,
@@ -11,13 +10,12 @@ import {
   withdrawMintedToken
 } from "../services/token.service"
 import {
-  addToken,
   getExplorerBaseUrl,
   signMessage,
   signUnsignedTx,
 } from "../services/wallet.service"
 import styles from "../styles/Home.module.css"
-import { SubscribeOptions, subscribeToTxStatus, TxStatusSubscription, TxStatus, web3, MessageHasher, prettifyAttoAlphAmount, isHexString } from "@alephium/web3"
+import { SubscribeOptions, subscribeToTxStatus, TxStatusSubscription, TxStatus, web3, MessageHasher, prettifyAttoAlphAmount, isHexString, tokenIdFromAddress } from "@alephium/web3"
 import { useWallet } from '@alephium/web3-react';
 
 type Status = "idle" | "approve" | "pending" | "success" | "failure"
@@ -30,7 +28,7 @@ export const TokenDapp: FC<{
   const [transferAmount, setTransferAmount] = useState("")
   const [shortText, setShortText] = useState("")
   const [messageHasher, setMessageHasher] = useState<MessageHasher>("alephium")
-  const [unsignedTx, setUnsignedTx] = useState("")
+  const [unsignedTx, setUnsignedTx] = useState("0004008000585cc1174876e800023f60913be92d4146622bba53124af5a9c0f2cdff6dbae1c696234237fb01fb5146fb3aa000029fbc50dd1c3fe5627f9f4d92541d6cb61267dc048752cd62672a3eaa0d293a3e3f60913b7e9bcf71333c7a8eb03ef54662d4e26963f41cd7ae9d5d631e285bf85dea8f3800029fbc50dd1c3fe5627f9f4d92541d6cb61267dc048752cd62672a3eaa0d293a3e03c3038d7ea4c6800000fe0b3dcc3a1b1d2b7e938008d95d112f19cc6afdceb9741159461e82f46bfc05000000000000000001be1aca0019bedc404eed78c63a2d56db07e520ef63ec8da6aee600d1cd5a0d010100c3038d7ea4c6800000fe0b3dcc3a1b1d2b7e938008d95d112f19cc6afdceb9741159461e82f46bfc05000000000000000001be1aca0019bedc404eed78c63a2d56db07e520ef63ec8da6aee600d1cd5a0d010900c53607873e84ad38b00000fe0b3dcc3a1b1d2b7e938008d95d112f19cc6afdceb9741159461e82f46bfc0500000000000000000000")
   const [txSignature, setTxSignature] = useState("")
   const [lastSig, setLastSig] = useState<string>()
   const [lastTransactionHash, setLastTransactionHash] = useState("")
@@ -55,17 +53,17 @@ export const TokenDapp: FC<{
   }
 
   useEffect(() => {
-    getTokenBalances(address).then(tokenBalances => {
+    getTokenBalances(alephium, address).then(tokenBalances => {
       if (tokenBalances.length > 0) {
         setSelectedTokenBalance({ value: tokenBalances[0], label: tokenBalances[0].id })
       }
       setTokenBalances(tokenBalances)
     })
 
-    getAlphBalance(address).then(alphBalance => {
+    getAlphBalance(alephium, address).then(alphBalance => {
       setAlphBalance(alphBalance)
     })
-  }, [address])
+  }, [address, alephium])
 
   useEffect(() => {
     ; (async () => {
@@ -145,7 +143,7 @@ export const TokenDapp: FC<{
       setTransactionStatus("approve")
 
       console.log("mint", mintAmount)
-      const result = await mintToken(mintAmount, network)
+      const result = await mintToken(alephium, mintAmount)
       console.log(result)
 
       setMintedToken(result.contractInstance.address)
@@ -163,7 +161,7 @@ export const TokenDapp: FC<{
       setTransactionStatus("approve")
 
       console.log("transfer", { transferTo, transferAmount })
-      const result = await transferToken(transferTokenAddress, transferTo, transferAmount, network)
+      const result = await transferToken(alephium, transferTokenAddress, transferTo, transferAmount)
       console.log(result)
 
       setLastTransactionHash(result.txId)
@@ -179,7 +177,7 @@ export const TokenDapp: FC<{
       e.preventDefault()
       setTransactionStatus("approve")
 
-      const destroyTokenContractResult = await destroyTokenContract(destroyTokenAddress)
+      const destroyTokenContractResult = await destroyTokenContract(alephium, destroyTokenAddress)
       setLastTransactionHash(destroyTokenContractResult.txId)
 
       setTransactionStatus("pending")
@@ -196,7 +194,7 @@ export const TokenDapp: FC<{
         setTransactionStatus("approve")
         console.log("transfer", { transferTo, transferAmount, mintedToken })
 
-        const result = await withdrawMintedToken(mintAmount, mintedToken)
+        const result = await withdrawMintedToken(alephium, mintAmount, mintedToken)
 
         setLastTransactionHash(result.txId)
         setTransactionStatus("pending")
@@ -216,7 +214,7 @@ export const TokenDapp: FC<{
       setTransactionStatus("approve")
 
       console.log("sign", shortText, messageHasher)
-      const result = await signMessage(shortText, messageHasher)
+      const result = await signMessage(alephium, account, shortText, messageHasher)
       console.log(result)
 
       setLastSig(result.signature)
@@ -233,7 +231,7 @@ export const TokenDapp: FC<{
       setTransactionStatus("approve")
 
       console.log("sign unsigned tx", unsignedTx)
-      const result = await signUnsignedTx(unsignedTx)
+      const result = await signUnsignedTx(alephium, account, unsignedTx)
       console.log(result)
 
       setTxSignature(result.signature)
@@ -297,13 +295,13 @@ export const TokenDapp: FC<{
                 />
                 <code>{selectedTokenBalance?.value.balance.balance.toString()}</code>
                 <code>
-                  <button
+                  {/* <button
                     className="flat"
                     style={{ marginLeft: ".6em" }}
                     onClick={async () => {
                       try {
                         if (selectedTokenBalance?.value.id) {
-                          const result = await addToken(selectedTokenBalance?.value.id)
+                          const result = await addToken(alephium, selectedTokenBalance?.value.id)
                           if (result) {
                             setAddTokenError("")
                           } else {
@@ -316,7 +314,7 @@ export const TokenDapp: FC<{
                     }}
                   >
                     Add to wallet
-                  </button>
+                  </button> */}
                 </code>
               </div>
               <span className="error-message">{addTokenError}</span>

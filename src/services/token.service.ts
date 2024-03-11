@@ -1,7 +1,7 @@
-import { getDefaultAlephiumWallet } from "@alephium/get-extension-wallet"
 import * as web3 from '@alephium/web3'
 import { binToHex, contractIdFromAddress, DUST_AMOUNT, stringToHex } from '@alephium/web3'
 import { Destroy, ShinyToken, ShinyTokenInstance, Transfer } from '../../artifacts/ts'
+import { setCurrentNodeProvider } from '@alephium/web3/dist/src/global'
 
 export const erc20TokenAddressByNetwork = {
   "goerli-alpha":
@@ -9,9 +9,6 @@ export const erc20TokenAddressByNetwork = {
   "mainnet-alpha":
     "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
 }
-
-export type PublicNetwork = keyof typeof erc20TokenAddressByNetwork
-export type Network = PublicNetwork | "devnet"
 
 export type TokenBalance = {
   id: string
@@ -21,12 +18,8 @@ export type TokenBalance = {
   }
 }
 
-export const getErc20TokenAddress = (network: PublicNetwork) =>
-  erc20TokenAddressByNetwork[network]
-
-export const getTokenBalances = async (address: string): Promise<TokenBalance[]> => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.explorerProvider) {
+export const getTokenBalances = async (alephium: web3.SignerProvider | undefined, address: string): Promise<TokenBalance[]> => {
+  if (!alephium || !alephium.explorerProvider) {
     console.log("Alephium explorer provider not initialized")
     return []
   }
@@ -55,9 +48,8 @@ export const getTokenBalances = async (address: string): Promise<TokenBalance[]>
   return tokens
 }
 
-export const getAlphBalance = async (address: string) => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.explorerProvider) {
+export const getAlphBalance = async (alephium: web3.SignerProvider | undefined, address: string) => {
+  if (!alephium || !alephium.explorerProvider) {
     console.log("Alephium explorer provider not initialized")
     return undefined
   }
@@ -68,11 +60,10 @@ export const getAlphBalance = async (address: string) => {
 }
 
 export const mintToken = async (
+  alephium: web3.SignerProvider | undefined,
   mintAmount: string,
-  network?: string
 ): Promise<web3.DeployContractResult<ShinyTokenInstance>> => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.connectedAccount || !alephium?.connectedNetworkId) {
+  if (alephium === undefined) {
     throw Error("alephium object not initialized")
   }
 
@@ -89,11 +80,11 @@ export const mintToken = async (
 }
 
 export const withdrawMintedToken = async (
+  alephium: web3.SignerProvider | undefined,
   amount: string,
   tokenId: string
 ): Promise<web3.SignExecuteScriptTxResult> => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.connectedAccount || !alephium?.connectedNetworkId) {
+  if (alephium === undefined) {
     throw Error("alephium object not initialized")
   }
 
@@ -102,25 +93,25 @@ export const withdrawMintedToken = async (
     {
       initialFields: {
         shinyTokenId: binToHex(contractIdFromAddress(tokenId)),
-        to: alephium.connectedAccount.address,
+        to: (await alephium.getSelectedAccount()).address,
         amount: BigInt(amount)
       }
     }
   )
 }
+
 export const transferToken = async (
+  alephium: web3.SignerProvider | undefined,
   tokenId: string,
   transferTo: string,
   transferAmount: string,
-  network?: string
 ): Promise<web3.SignTransferTxResult> => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.connectedAccount || !alephium?.connectedNetworkId) {
+  if (alephium === undefined) {
     throw Error("alephium object not initialized")
   }
 
   return await alephium.signAndSubmitTransferTx({
-    signerAddress: alephium.connectedAccount.address,
+    signerAddress: (await alephium.getSelectedAccount()).address,
     destinations: [{
       address: transferTo,
       attoAlphAmount: DUST_AMOUNT,
@@ -134,10 +125,10 @@ export const transferToken = async (
 }
 
 export const destroyTokenContract = async (
+  alephium: web3.SignerProvider | undefined,
   tokenId: string,
 ): Promise<web3.ExecuteScriptResult> => {
-  const alephium = await getDefaultAlephiumWallet()
-  if (!alephium?.connectedAccount || !alephium?.connectedNetworkId) {
+  if (alephium === undefined) {
     throw Error("alephium object not initialized")
   }
 
@@ -146,7 +137,7 @@ export const destroyTokenContract = async (
     {
       initialFields: {
         shinyTokenId: binToHex(contractIdFromAddress(tokenId)),
-        to: alephium.connectedAccount.address,
+        to: (await alephium.getSelectedAccount()).address,
       }
     }
   )
