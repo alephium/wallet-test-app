@@ -1,5 +1,5 @@
 import * as web3 from '@alephium/web3'
-import { binToHex, contractIdFromAddress, DUST_AMOUNT, stringToHex } from '@alephium/web3'
+import { binToHex, contractIdFromAddress, DUST_AMOUNT, stringToHex, TransactionBuilder } from '@alephium/web3'
 import { Destroy, ShinyToken, ShinyTokenInstance, Transfer } from '../../artifacts/ts'
 import { setCurrentNodeProvider } from '@alephium/web3/dist/src/global'
 
@@ -123,6 +123,43 @@ export const transferToken = async (
     }]
   })
 }
+
+export const transferTokenSignAndSubmitUnsignedTx = async (
+  alephium: web3.SignerProvider | undefined,
+  tokenId: string,
+  transferTo: string,
+  transferAmount: string
+): Promise<web3.SignTransferTxResult> => {
+  if (alephium === undefined) {
+    throw Error("alephium object not initialized");
+  }
+
+  const builder = TransactionBuilder.from(alephium.nodeProvider!);
+  const account = await alephium.getSelectedAccount();
+  const buildResult = await builder.buildTransferTx(
+    {
+      signerAddress: account.address,
+      destinations: [
+        {
+          address: transferTo,
+          attoAlphAmount: DUST_AMOUNT,
+          tokens: [
+            {
+              id: tokenId,
+              amount: BigInt(transferAmount),
+            },
+          ],
+        },
+      ],
+    },
+    account.publicKey
+  );
+
+  return await alephium.signAndSubmitUnsignedTx({
+    signerAddress: account.address,
+    unsignedTx: buildResult.unsignedTx,
+  });
+};
 
 export const destroyTokenContract = async (
   alephium: web3.SignerProvider | undefined,
