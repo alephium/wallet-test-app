@@ -7,6 +7,7 @@ import {
   mintToken,
   TokenBalance,
   transferToken,
+  transferTokenSignAndSubmitUnsignedTx,
   withdrawMintedToken
 } from "../services/token.service"
 import {
@@ -162,6 +163,23 @@ export const TokenDapp: FC<{
 
       console.log("transfer", { transferTo, transferAmount })
       const result = await transferToken(alephium, transferTokenAddress, transferTo, transferAmount)
+      console.log(result)
+
+      setLastTransactionHash(result.txId)
+      setTransactionStatus("pending")
+    } catch (e) {
+      console.error(e)
+      setTransactionStatus("idle")
+    }
+  }
+
+  const handleTransferSubmitUnsignedTx = async (e: React.FormEvent) => {
+    try {
+      e.preventDefault()
+      setTransactionStatus("approve")
+
+      console.log("transfer", { transferTo, transferAmount })
+      const result = await transferTokenSignAndSubmitUnsignedTx(alephium, transferTokenAddress, transferTo, transferAmount)
       console.log(result)
 
       setLastTransactionHash(result.txId)
@@ -374,6 +392,38 @@ export const TokenDapp: FC<{
         }
         <form onSubmit={handleTransferSubmit}>
           <h2 className={styles.title}>Transfer token</h2>
+
+          <label htmlFor="transfer-token-address">Token Id</label>
+          <input
+            type="text"
+            id="transfer-to"
+            name="fname"
+            value={transferTokenAddress}
+            onChange={(e) => setTransferTokenAddress(e.target.value)}
+          />
+
+          <label htmlFor="transfer-to">To</label>
+          <input
+            type="text"
+            id="transfer-to"
+            name="fname"
+            value={transferTo}
+            onChange={(e) => setTransferTo(e.target.value)}
+          />
+
+          <label htmlFor="transfer-amount">Amount</label>
+          <input
+            type="number"
+            id="transfer-amount"
+            name="fname"
+            value={transferAmount}
+            onChange={(e) => setTransferAmount(e.target.value)}
+          />
+          <br />
+          <input type="submit" disabled={buttonsDisabled} value="Transfer" />
+        </form>
+        <form onSubmit={handleTransferSubmitUnsignedTx}>
+          <h2 className={styles.title}>Transfer token (sign & submit unsigned tx)</h2>
 
           <label htmlFor="transfer-token-address">Token Id</label>
           <input
